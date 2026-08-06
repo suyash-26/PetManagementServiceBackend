@@ -5,13 +5,13 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.UuidGenerator;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "care_center")
+@Table(name = "care_centers")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -23,7 +23,7 @@ public class CareCenter {
     @Column(nullable = false,length = 150)
     private String name;
 
-    @Column(nullable = false)
+    @Column(nullable = false,columnDefinition = "text")
     private String description;
 
     @Column(nullable = false)
@@ -40,7 +40,9 @@ public class CareCenter {
     @Column(nullable = false,length = 15)
     private String contactPhone;
 
+    @Column(precision = 9, scale = 6)
     private BigDecimal longitude;
+    @Column(precision = 9, scale = 6)
     private BigDecimal latitude;
 
     @Column(nullable = false)
@@ -53,6 +55,21 @@ public class CareCenter {
     @Column(nullable = false, updatable = false)
     private UUID createdBy;
 
+    @Column(nullable = false, updatable = false)
+    private Instant createdAt;
 
+    @Column(nullable = false)
+    private Instant updatedAt;
 
+    @PrePersist
+    public void prePersist(){
+        Instant now = Instant.now();
+        createdAt = now;
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    public void preUpdate(){
+        updatedAt = Instant.now();
+    }
 }
