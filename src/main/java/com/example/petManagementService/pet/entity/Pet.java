@@ -1,8 +1,8 @@
 package com.example.petManagementService.pet.entity;
 
-import com.example.petManagementService.enums.Gender;
-import com.example.petManagementService.enums.PetStatus;
-import com.example.petManagementService.enums.Species;
+import com.example.petManagementService.pet.enums.Gender;
+import com.example.petManagementService.pet.enums.PetStatus;
+import com.example.petManagementService.pet.enums.Species;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
