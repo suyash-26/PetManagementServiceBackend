@@ -1,4 +1,4 @@
-package com.example.petManagementService.enums;
+package com.example.petManagementService.pet.enums;
 
 public enum PetStatus {
     OWNED,
