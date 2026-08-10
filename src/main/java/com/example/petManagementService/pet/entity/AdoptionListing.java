@@ -5,16 +5,19 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "adoption_listings")
@@ -23,20 +26,21 @@ import org.hibernate.annotations.CreationTimestamp;
 public class AdoptionListing {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @UuidGenerator
+    private UUID id;
 
-    @Column(name = "pet_id", nullable = false)
-    private Long petId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "pet_id", nullable = false)
+    private Pet pet;
 
     @Column(name = "center_id", nullable = false)
-    private Long centerId;
+    private UUID centerId;
 
     @Column(name = "listed_by_admin_id", nullable = false)
     private Long listedByAdminId;
 
     @Column(name = "source_intake_request_id")
-    private Long sourceIntakeRequestId;
+    private UUID sourceIntakeRequestId;
 
     @Column(columnDefinition = "text")
     private String description;
