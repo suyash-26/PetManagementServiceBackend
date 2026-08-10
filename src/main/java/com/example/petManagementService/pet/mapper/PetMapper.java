@@ -18,6 +18,9 @@ public interface PetMapper {
     @Mapping(target = "surrenderedByUserId", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "version", ignore = true)
+    @Mapping(target = "images", ignore = true)
+    @Mapping(target = "custodyHistory", ignore = true)
+    @Mapping(target = "listings", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     Pet toEntity(PetRequest request);
@@ -31,6 +34,9 @@ public interface PetMapper {
     @Mapping(target = "surrenderedByUserId", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "version", ignore = true)
+    @Mapping(target = "images", ignore = true)
+    @Mapping(target = "custodyHistory", ignore = true)
+    @Mapping(target = "listings", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     void updateEntity(PetRequest request, @MappingTarget Pet pet);
