@@ -3,22 +3,26 @@ package com.example.petManagementService.pet.entity;
 import com.example.petManagementService.pet.enums.Gender;
 import com.example.petManagementService.pet.enums.PetStatus;
 import com.example.petManagementService.pet.enums.Species;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "pets")
@@ -27,14 +31,14 @@ import org.hibernate.annotations.UpdateTimestamp;
 public class Pet {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @UuidGenerator
+    private UUID id;
 
     @Column(name = "owner_user_id")
     private Long ownerUserId;
 
     @Column(name = "custodian_center_id")
-    private Long custodianCenterId;
+    private UUID custodianCenterId;
 
     @Column(name = "surrendered_by_user_id")
     private Long surrenderedByUserId;
@@ -74,6 +78,15 @@ public class Pet {
 
     @Version
     private Long version;
+
+    @OneToMany(mappedBy = "pet", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PetImage> images = new ArrayList<>();
+
+    @OneToMany(mappedBy = "pet")
+    private List<PetCustodyHistory> custodyHistory = new ArrayList<>();
+
+    @OneToMany(mappedBy = "pet")
+    private List<AdoptionListing> listings = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
