@@ -6,6 +6,7 @@ import com.example.petManagementService.pet.enums.Species;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.UUID;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -15,10 +16,10 @@ import lombok.Setter;
 @Builder
 public class PetResponse {
 
-    private Long id;
+    private UUID id;
 
     private Long ownerUserId;
-    private Long custodianCenterId;
+    private UUID custodianCenterId;
     private Long surrenderedByUserId;
 
     private String name;
