@@ -6,6 +6,6 @@ import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 
 public record CenterMemberRequest(     // here we are not taking the centerId bcoz it will come from the path
-        @NotNull UUID userId,
+        @NotNull Long userId,
         @NotNull MemberRole memberRole
 ) { }
