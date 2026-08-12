@@ -28,7 +28,7 @@ public class CenterMember {
     private CareCenter center;
 
     @Column(name = "user_id", nullable = false, updatable = false) // not a relationship of manyToOne as the microservice of auth is seperate
-    private UUID userId;
+    private Long userId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
