@@ -53,7 +53,7 @@ public class CareCenter {
     private CenterStatus status = CenterStatus.PENDING;
 
     @Column(nullable = false, updatable = false)
-    private UUID createdBy;
+    private Long createdBy;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

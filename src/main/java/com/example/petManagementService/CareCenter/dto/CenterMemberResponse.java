@@ -8,7 +8,7 @@ import java.util.UUID;
 public record CenterMemberResponse(
         UUID id,
         UUID centerId,
-        UUID userId,
+        Long userId,
         MemberRole memberRole,
         Instant joinedAt
 ) {}
