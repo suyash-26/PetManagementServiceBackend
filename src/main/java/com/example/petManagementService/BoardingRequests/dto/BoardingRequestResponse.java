@@ -11,7 +11,7 @@ public record BoardingRequestResponse(
         UUID requestId,
         UUID petId,
         UUID centerId,
-        UUID requesterUserId,
+        Long requesterUserId,
         RequestStatus status,
         LocalDate startDate,
         LocalDate endDate,

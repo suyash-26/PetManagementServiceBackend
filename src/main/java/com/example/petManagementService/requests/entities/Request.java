@@ -1,19 +1,23 @@
 package com.example.petManagementService.requests.entities;
 
+import com.example.petManagementService.CareCenter.entities.CareCenter;
 import com.example.petManagementService.requests.enums.RequestStatus;
 import com.example.petManagementService.requests.enums.RequestType;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UuidGenerator;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
 
 import java.time.Instant;
 import java.util.UUID;
 
+// Polymorphic parent shared by INTAKE/ADOPTION/BOARDING/GENERAL — see the matching
+// detail table (IntakeRequest, AdoptionRequest, BoardingRequests) sharing this row's id
+// via @MapsId. requesterUserId/assignedAdmin are Long, not UUID: they're references to
+// authService user ids (Auth issues Long/bigint ids, not UUIDs) — Core never puts a FK
+// on Auth's DB, it just trusts the id off the JWT.
 @Entity
 @Getter
 @Setter
@@ -22,16 +26,35 @@ public class Request {
     @Id
     @UuidGenerator
     private UUID id;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private RequestType requestType;
-    private UUID requesterUserId;
+
+    @Column(nullable = false)
+    private Long requesterUserId;
+
     private UUID petId;
-    private UUID centerId;
-    private RequestStatus status;
-    private UUID assignedAdmin;
+
+    @ManyToOne
+    private CareCenter careCenter;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private RequestStatus status = RequestStatus.PENDING;
+
+    private Long assignedAdmin;
+
     private String notes;
+
+    // Optimistic lock — "blocks double-approval" per the design doc: two admins racing
+    // to approve/reject/complete the same request will have one lose with a stale-object
+    // exception instead of silently double-applying the transition.
+    @Version
     private Integer version;
-    @CreatedDate
+
+    @CreationTimestamp
     private Instant createdAt;
-    @LastModifiedDate
+
     private Instant decidedAt;
 }
