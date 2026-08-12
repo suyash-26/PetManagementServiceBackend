@@ -3,41 +3,52 @@ package com.example.petManagementService.pet.mapper;
 import com.example.petManagementService.pet.dto.PetRequest;
 import com.example.petManagementService.pet.dto.PetResponse;
 import com.example.petManagementService.pet.entity.Pet;
-import org.mapstruct.BeanMapping;
-import org.mapstruct.Mapping;
-import org.mapstruct.MappingTarget;
-import org.mapstruct.Mapper;
-import org.mapstruct.NullValuePropertyMappingStrategy;
+import org.springframework.stereotype.Component;
 
-@Mapper(componentModel = "spring")
-public interface PetMapper {
+@Component
+public class PetMapper {
 
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "ownerUserId", ignore = true)
-    @Mapping(target = "custodianCenterId", ignore = true)
-    @Mapping(target = "surrenderedByUserId", ignore = true)
-    @Mapping(target = "status", ignore = true)
-    @Mapping(target = "version", ignore = true)
-    @Mapping(target = "images", ignore = true)
-    @Mapping(target = "custodyHistory", ignore = true)
-    @Mapping(target = "listings", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    Pet toEntity(PetRequest request);
+    public Pet toEntity(PetRequest req) {
+        Pet pet = new Pet();
+        applyTo(req, pet);
+        return pet;
+    }
 
-    PetResponse toResponse(Pet pet);
+    public void applyTo(PetRequest req, Pet pet) {
+        pet.setName(req.getName());
+        pet.setSpecies(req.getSpecies());
+        pet.setBreed(req.getBreed());
+        pet.setGender(req.getGender());
+        pet.setDateOfBirth(req.getDateOfBirth());
+        pet.setSize(req.getSize());
+        pet.setColor(req.getColor());
+        pet.setWeightKg(req.getWeightKg());
+        pet.setVaccinated(req.getVaccinated());
+        pet.setSterilized(req.getSterilized());
+        pet.setMedicalNotes(req.getMedicalNotes());
+    }
 
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "ownerUserId", ignore = true)
-    @Mapping(target = "custodianCenterId", ignore = true)
-    @Mapping(target = "surrenderedByUserId", ignore = true)
-    @Mapping(target = "status", ignore = true)
-    @Mapping(target = "version", ignore = true)
-    @Mapping(target = "images", ignore = true)
-    @Mapping(target = "custodyHistory", ignore = true)
-    @Mapping(target = "listings", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    void updateEntity(PetRequest request, @MappingTarget Pet pet);
+    public PetResponse toResponse(Pet p) {
+        return PetResponse.builder()
+                .id(p.getId())
+                .ownerUserId(p.getOwnerUserId())
+                .custodianCenterId(p.getCustodianCenterId())
+                .surrenderedByUserId(p.getSurrenderedByUserId())
+                .name(p.getName())
+                .species(p.getSpecies())
+                .breed(p.getBreed())
+                .gender(p.getGender())
+                .dateOfBirth(p.getDateOfBirth())
+                .size(p.getSize())
+                .color(p.getColor())
+                .weightKg(p.getWeightKg())
+                .vaccinated(p.getVaccinated())
+                .sterilized(p.getSterilized())
+                .medicalNotes(p.getMedicalNotes())
+                .status(p.getStatus())
+                .version(p.getVersion())
+                .createdAt(p.getCreatedAt())
+                .updatedAt(p.getUpdatedAt())
+                .build();
+    }
 }

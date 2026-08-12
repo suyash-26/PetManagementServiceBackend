@@ -6,6 +6,7 @@ import com.example.petManagementService.pet.service.PetService;
 import jakarta.validation.Valid;
 import java.security.Principal;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -41,13 +42,13 @@ public class PetController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PetResponse> getById(@PathVariable Long id) {
+    public ResponseEntity<PetResponse> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(petService.getById(id));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<PetResponse> update(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @Valid @RequestBody PetRequest request,
             Principal principal) {
 
