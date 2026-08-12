@@ -3,6 +3,7 @@ package com.example.petManagementService.pet.service;
 import com.example.petManagementService.pet.dto.PetRequest;
 import com.example.petManagementService.pet.dto.PetResponse;
 import java.util.List;
+import java.util.UUID;
 
 public interface PetService {
 
@@ -10,7 +11,7 @@ public interface PetService {
 
     List<PetResponse> getMine(Long currentUserId);
 
-    PetResponse getById(Long petId);
+    PetResponse getById(UUID petId);
 
-    PetResponse update(Long petId, PetRequest request, Long currentUserId);
+    PetResponse update(UUID petId, PetRequest request, Long currentUserId);
 }
