@@ -24,7 +24,7 @@ public class BoardingRequestMapper {
     public BoardingRequestResponse toResponse(BoardingRequests b) {
         Request r = b.getRequest();
         return new BoardingRequestResponse(
-                b.getRequestId(), r.getPetId(), r.getCenterId(), r.getRequesterUserId(),
+                b.getRequestId(), r.getPetId(), r.getCareCenter().getId(), r.getRequesterUserId(),
                 r.getStatus(), b.getStartDate(), b.getEndDate(),
                 b.getSpecialInstructions(), b.getQuotedPrice(),
                 b.getCheckedInAt(), b.getCheckedOutAt());
