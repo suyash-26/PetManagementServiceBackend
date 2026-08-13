@@ -4,6 +4,7 @@ import com.example.petManagementService.common.security.JwtAuthenticationFilter;
 import com.example.petManagementService.common.security.JwtService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -44,7 +45,15 @@ public class SecurityConfig {
                         // AuthenticatedUser is present (there's no anonymous "my requests" or
                         // "raise an intake"); without this they'd NPE instead of 401ing when
                         // called with no token. Everything else stays permitAll, unchanged.
-                        .requestMatchers("/requests/**", "/intake/**", "/pets/**").authenticated()
+                        .requestMatchers("/requests/**", "/intake/**").authenticated()
+                        // The centers feed and a center's detail page are browsable without a
+                        // token; everything else under /centers mutates or exposes membership
+                        // and reads user.id() off the principal, so it must 401 rather than NPE.
+                        // These two lines are order-sensitive: first match wins, so the public
+                        // GETs have to precede the catch-all. "/centers/*" stops at the detail
+                        // page — it deliberately does not cover /centers/{id}/members.
+                        .requestMatchers(HttpMethod.GET, "/centers", "/centers/*").permitAll()
+                        .requestMatchers("/centers/**").authenticated()
                         // Left wide open for now (pre-existing behavior, unchanged elsewhere):
                         // the filter populates SecurityContext when a valid token is present,
                         // but nothing requires one at the URL level for other modules yet.

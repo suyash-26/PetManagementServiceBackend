@@ -10,7 +10,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface CenterMemberRepository extends JpaRepository<CenterMember,Long> {
+public interface CenterMemberRepository extends JpaRepository<CenterMember,UUID> {
    public boolean existsByCenter_IdAndUserId(UUID centerId, Long userId);
    public boolean existsByCenter_IdAndUserIdAndMemberRole(UUID centerId, Long userId, MemberRole role);
    public Optional<CenterMember> findByCenter_IdAndUserId(UUID centerId, Long userId);
