@@ -44,7 +44,7 @@ public class SecurityConfig {
                         // AuthenticatedUser is present (there's no anonymous "my requests" or
                         // "raise an intake"); without this they'd NPE instead of 401ing when
                         // called with no token. Everything else stays permitAll, unchanged.
-                        .requestMatchers("/requests/**", "/intake/**").authenticated()
+                        .requestMatchers("/requests/**", "/intake/**", "/pets/**").authenticated()
                         // Left wide open for now (pre-existing behavior, unchanged elsewhere):
                         // the filter populates SecurityContext when a valid token is present,
                         // but nothing requires one at the URL level for other modules yet.
