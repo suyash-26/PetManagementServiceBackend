@@ -70,7 +70,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         // Vite dev server origin for the frontend; add production frontend origin(s) here when deployed.
-        config.setAllowedOrigins(List.of("http://localhost:5173","https://pet-management-user-dashboard.vercel.app"));
+        config.setAllowedOrigins(List.of("http://localhost:5173","https://pet-management-user-dashboard.vercel.app","https://pet-management-admin-dashboard.vercel.app"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
