@@ -9,8 +9,10 @@ import com.example.petManagementService.pet.repository.PetRepository;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -55,7 +57,9 @@ public class PetServiceImpl implements PetService {
         Pet pet = findPetOrThrow(petId);
 
         if (pet.getOwnerUserId() == null || !pet.getOwnerUserId().equals(currentUserId)) {
-            throw new IllegalStateException("NOT_PET_OWNER");
+            // 403, not a raw IllegalStateException: nothing mapped that, so editing a pet
+            // you don't own answered 500 as though the server had broken.
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "NOT_PET_OWNER");
         }
 
         petMapper.applyTo(request, pet);
@@ -65,7 +69,9 @@ public class PetServiceImpl implements PetService {
     }
 
     private Pet findPetOrThrow(UUID petId) {
+        // Matches how intake/requests report a missing row — an unmapped
+        // IllegalArgumentException surfaced as a 500 instead of a 404.
         return petRepository.findById(petId)
-                .orElseThrow(() -> new IllegalArgumentException("PET_NOT_FOUND"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "PET_NOT_FOUND"));
     }
 }

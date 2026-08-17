@@ -40,6 +40,18 @@ public class CareCenterController {
         return ResponseEntity.ok(centerService.search(city, CenterStatus.ACTIVE));
     }
 
+    // Admin listing. The public feed above can never return a PENDING center, which left
+    // approval unreachable: an admin had to already know a center's UUID to act on it.
+    // Same search, but the status is the caller's to choose (omit it for every center),
+    // which is exactly why this one is gated to SUPER_ADMIN and the public route isn't.
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<List<CareCenterResponse>> adminSearch(
+            @RequestParam(required = false) CenterStatus status,
+            @RequestParam(required = false) String city) {
+        return ResponseEntity.ok(centerService.search(city, status));
+    }
+
     @GetMapping("/mine")
     public ResponseEntity<List<CenterMemberResponse>> myCenters(
             @AuthenticationPrincipal AuthenticatedUser user) {
