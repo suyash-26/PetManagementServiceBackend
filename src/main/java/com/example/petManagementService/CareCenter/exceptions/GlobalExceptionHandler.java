@@ -6,7 +6,6 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -45,16 +44,17 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.FORBIDDEN, ex.getMessage(), null);
     }
 
-    // The intake, request and pet modules signal failures with ResponseStatusException
-    // carrying a stable code as the reason (PET_HAS_ACTIVE_REQUEST, PET_NOT_FOUND,
-    // NOT_PET_OWNER...). Spring leaves that reason out of the response body by default
-    // (server.error.include-message=never), so a client could only see a bare status and
-    // had to guess what went wrong. Re-emitting the reason in the ApiError envelope makes
-    // those codes readable without exposing messages from unexpected 500s globally.
-    @ExceptionHandler(ResponseStatusException.class)
-    public ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException ex) {
-        HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
-        return build(status != null ? status : HttpStatus.INTERNAL_SERVER_ERROR, ex.getReason(), null);
+    // PetServiceImpl.update()'s ownership check — same shape as NotCenterAdminException above.
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiError> handleIllegalState(IllegalStateException ex) {
+        return build(HttpStatus.FORBIDDEN, ex.getMessage(), null);
+    }
+
+    // PetServiceImpl.findPetOrThrow() — the only IllegalArgumentException thrown anywhere in
+    // the service layer, so mapping the type globally is safe today.
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException ex) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), null);
     }
 
     // Every @Valid failure on a request body lands here, so validation errors come back in
