@@ -1,5 +1,7 @@
 package com.example.petManagementService.intake.services;
 
+import com.example.petManagementService.CareCenter.entities.CareCenter;
+import com.example.petManagementService.CareCenter.enums.CenterStatus;
 import com.example.petManagementService.CareCenter.repository.CareCenterRepository;
 import com.example.petManagementService.intake.dto.IntakeRequestCreateRequest;
 import com.example.petManagementService.intake.dto.IntakeRequestResponse;
@@ -25,13 +27,9 @@ import java.util.UUID;
 //
 // Deliberately does NOT touch the pet module (out of scope for this pass): petId is
 // taken as an opaque UUID reference, with no check that the pet exists or is OWNED by
-// the caller. CareCenterRepository IS used, but only as a lightweight, unmodified
-// dependency: Request.careCenter is a real @ManyToOne relationship, and the response
-// DTOs now embed the full CareCenter entity (matching RequestResponse's shape) rather
-// than a flat centerId — so this does a real findById() fetch, not getReferenceById()'s
-// lazy proxy, which would either throw LazyInitializationException or serialize as an
-// empty/broken object once Jackson tries to write it out. A side benefit: this also
-// checks the center actually exists (still no ACTIVE-status check — out of scope).
+// the caller. CareCenterRepository/CenterMemberRepository (via RequestService) ARE
+// used, but only as lightweight, unmodified dependencies — reads/existence checks
+// against already-correct repositories, never a write into another module's data.
 @Service
 @RequiredArgsConstructor
 public class IntakeRequestService {
@@ -40,6 +38,7 @@ public class IntakeRequestService {
     private final IntakeRequestRepository intakeRequestRepository;
     private final IntakeRequestMapper intakeRequestMapper;
     private final CareCenterRepository careCenterRepository;
+    private final RequestService requestService;
 
     @Transactional
     public IntakeRequestResponse createIntake(Long requesterUserId, IntakeRequestCreateRequest dto) {
@@ -50,15 +49,21 @@ public class IntakeRequestService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "PET_HAS_ACTIVE_REQUEST");
         }
 
+        CareCenter center = careCenterRepository.findById(dto.centerId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "CENTER_NOT_FOUND"));
+        if (center.getStatus() != CenterStatus.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CENTER_NOT_ACTIVE");
+        }
+
         Request request = intakeRequestMapper.toRequestEntity(requesterUserId, dto);
-        request.setCareCenter(careCenterRepository.findById(dto.centerId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "CENTER_NOT_FOUND")));
+        request.setCareCenter(center);
         // saveAndFlush, not save: @CreationTimestamp only populates createdAt at flush
         // time, which a @Transactional method would otherwise defer until commit —
         // leaving createdAt null in *this* response even though it's correctly set by
         // the time anything re-reads the row afterward. Flushing now keeps the create
         // response accurate too.
         Request savedRequest = requestRepository.saveAndFlush(request);
+        requestService.recordInitialCreation(savedRequest, requesterUserId);
 
         IntakeRequest intake = intakeRequestMapper.toIntakeEntity(dto);
         intake.setRequest(savedRequest); // @MapsId copies the id from savedRequest
@@ -70,8 +75,13 @@ public class IntakeRequestService {
         return intakeRequestMapper.toResponse(savedRequest, savedIntake);
     }
 
+    // Now scoped to admins of *this* center (or SUPER_ADMIN) via
+    // RequestService.requireCenterAccess() — previously role-level only.
     @Transactional(readOnly = true)
-    public List<IntakeRequestResponse> getCenterIntakeRequests(UUID centerId, RequestStatus status) {
+    public List<IntakeRequestResponse> getCenterIntakeRequests(UUID centerId, RequestStatus status,
+                                                                Long callerId, String callerRole) {
+        requestService.requireCenterAccess(centerId, callerId, callerRole);
+
         List<Request> requests = status != null
                 ? requestRepository.findByCareCenter_IdAndStatusAndRequestType(centerId, status, RequestType.INTAKE)
                 : requestRepository.findByCareCenter_IdAndRequestType(centerId, RequestType.INTAKE);

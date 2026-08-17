@@ -44,6 +44,19 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.FORBIDDEN, ex.getMessage(), null);
     }
 
+    // PetServiceImpl.update()'s ownership check — same shape as NotCenterAdminException above.
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiError> handleIllegalState(IllegalStateException ex) {
+        return build(HttpStatus.FORBIDDEN, ex.getMessage(), null);
+    }
+
+    // PetServiceImpl.findPetOrThrow() — the only IllegalArgumentException thrown anywhere in
+    // the service layer, so mapping the type globally is safe today.
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException ex) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), null);
+    }
+
     // Every @Valid failure on a request body lands here, so validation errors come back in
     // the same ApiError shape as everything else — with one entry per rejected field.
     @ExceptionHandler(MethodArgumentNotValidException.class)

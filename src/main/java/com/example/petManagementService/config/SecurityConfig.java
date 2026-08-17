@@ -46,6 +46,13 @@ public class SecurityConfig {
                         // "raise an intake"); without this they'd NPE instead of 401ing when
                         // called with no token. Everything else stays permitAll, unchanged.
                         .requestMatchers("/requests/**", "/intake/**").authenticated()
+                        // PetController mirrors the same assumption (create/getMine/update all
+                        // read user.id() off the principal) but was missed when this fix was
+                        // applied to requests/intake — anonymous calls NPE (500) instead of
+                        // 401ing without this. GET /pets/{id} doesn't strictly need a principal,
+                        // but nothing in either dashboard calls it anonymously, so there's no
+                        // real public-browsing use case here worth carving out (unlike /centers).
+                        .requestMatchers("/pets/**").authenticated()
                         // The centers feed and a center's detail page are browsable without a
                         // token; everything else under /centers mutates or exposes membership
                         // and reads user.id() off the principal, so it must 401 rather than NPE.
@@ -70,7 +77,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         // Vite dev server origin for the frontend; add production frontend origin(s) here when deployed.
-        config.setAllowedOrigins(List.of("http://localhost:5173","https://pet-management-user-dashboard.vercel.app","https://pet-management-admin-dashboard.vercel.app"));
+        config.setAllowedOrigins(List.of("http://localhost:5173","http://localhost:5174","https://pet-management-user-dashboard.vercel.app","https://pet-management-admin-dashboard.vercel.app"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

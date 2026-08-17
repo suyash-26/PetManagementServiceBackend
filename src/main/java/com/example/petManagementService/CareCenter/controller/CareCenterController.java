@@ -40,6 +40,18 @@ public class CareCenterController {
         return ResponseEntity.ok(centerService.search(city, CenterStatus.ACTIVE));
     }
 
+    // Platform-wide moderation feed for the admin dashboard: unlike the public feed above,
+    // status is caller-supplied (and optional — omitting it returns every status, including
+    // PENDING centers awaiting approval). SUPER_ADMIN only, since this crosses center
+    // boundaries rather than being scoped to a center the caller administers.
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<List<CareCenterResponse>> searchAll(
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) CenterStatus status) {
+        return ResponseEntity.ok(centerService.search(city, status));
+    }
+
     @GetMapping("/mine")
     public ResponseEntity<List<CenterMemberResponse>> myCenters(
             @AuthenticationPrincipal AuthenticatedUser user) {
