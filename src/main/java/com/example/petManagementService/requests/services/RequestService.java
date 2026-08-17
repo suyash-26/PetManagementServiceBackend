@@ -1,6 +1,12 @@
 package com.example.petManagementService.requests.services;
 
 import com.example.petManagementService.CareCenter.repository.CenterMemberRepository;
+import com.example.petManagementService.pet.entity.Pet;
+import com.example.petManagementService.pet.entity.PetCustodyHistory;
+import com.example.petManagementService.pet.enums.PetStatus;
+import com.example.petManagementService.pet.enums.TransferType;
+import com.example.petManagementService.pet.repository.PetCustodyHistoryRepository;
+import com.example.petManagementService.pet.repository.PetRepository;
 import com.example.petManagementService.requests.dto.RequestResponse;
 import com.example.petManagementService.requests.dto.RequestStatusHistoryResponse;
 import com.example.petManagementService.requests.entities.Request;
@@ -45,6 +51,8 @@ public class RequestService {
     private final RequestStatusHistoryRepository requestStatusHistoryRepository;
     private final CenterMemberRepository centerMemberRepository;
     private final RequestMapper requestMapper;
+    private final PetRepository petRepository;
+    private final PetCustodyHistoryRepository petCustodyHistoryRepository;
 
     @Transactional(readOnly = true)
     public List<RequestResponse> getMyRequests(Long requesterUserId) {
@@ -150,13 +158,48 @@ public class RequestService {
 
         request.setStatus(RequestStatus.COMPLETED);
         request.setDecidedAt(Instant.now());
-        // GAP: this is where the actual custody transfer belongs — pets.custodian_center_id,
-        // pets.owner_user_id, pets.status, plus a pet_custody_history row, all in this same
-        // transaction (CustodyService.transfer() per the design doc). Not implemented here;
-        // needs the pet module. Completing today only finalizes the request record itself.
+        // Custody transfer for INTAKE only — an ADOPTION/BOARDING "complete" doesn't mean
+        // the same thing (adoption moves a pet already IN_CENTER_CUSTODY to its adopter;
+        // boarding is a loan, not a transfer) and neither module is implemented yet, so
+        // this stays scoped rather than guessing their semantics.
+        if (request.getRequestType() == RequestType.INTAKE) {
+            transferCustodyToCenter(request, adminUserId);
+        }
         Request saved = requestRepository.save(request);
         recordStatusChange(saved, previousStatus, RequestStatus.COMPLETED, adminUserId, null);
         return requestMapper.toResponse(saved);
+    }
+
+    // The actual handover: the pet stops being "mine" for the surrendering owner (GET
+    // /pets/mine filters on ownerUserId) and becomes this center's custody. surrenderedByUserId
+    // is kept for provenance even though ownerUserId is cleared — nothing else records who
+    // handed the pet over otherwise. One PetCustodyHistory row mirrors what RequestStatusHistory
+    // already does for the request itself.
+    private void transferCustodyToCenter(Request request, Long adminUserId) {
+        Pet pet = petRepository.findById(request.getPetId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                        "PET_MISSING_ON_COMPLETE: request " + request.getId() + " references a pet that no longer exists"));
+
+        Long fromUserId = pet.getOwnerUserId();
+        UUID fromCenterId = pet.getCustodianCenterId();
+        UUID toCenterId = request.getCareCenter().getId();
+
+        pet.setOwnerUserId(null);
+        pet.setCustodianCenterId(toCenterId);
+        pet.setSurrenderedByUserId(fromUserId);
+        pet.setStatus(PetStatus.IN_CENTER_CUSTODY);
+        petRepository.save(pet);
+
+        PetCustodyHistory history = new PetCustodyHistory();
+        history.setPet(pet);
+        history.setFromUserId(fromUserId);
+        history.setFromCenterId(fromCenterId);
+        history.setToCenterId(toCenterId);
+        history.setRequestId(request.getId());
+        history.setTransferType(TransferType.INTAKE);
+        history.setTransferredAt(Instant.now());
+        history.setRecordedBy(adminUserId);
+        petCustodyHistoryRepository.save(history);
     }
 
     // Real audit trail now (requests.entities.RequestStatusHistory) — one row per
