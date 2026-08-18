@@ -41,11 +41,12 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/h2-console/**").permitAll()
-                        // requests/intake controllers all assume @AuthenticationPrincipal
-                        // AuthenticatedUser is present (there's no anonymous "my requests" or
-                        // "raise an intake"); without this they'd NPE instead of 401ing when
-                        // called with no token. Everything else stays permitAll, unchanged.
-                        .requestMatchers("/requests/**", "/intake/**").authenticated()
+                        // requests/intake/listings controllers all assume @AuthenticationPrincipal
+                        // AuthenticatedUser is present (there's no anonymous "my requests",
+                        // "raise an intake", or "apply to a listing"); without this they'd NPE
+                        // instead of 401ing when called with no token. Everything else stays
+                        // permitAll, unchanged.
+                        .requestMatchers("/requests/**", "/intake/**", "/listings/**").authenticated()
                         // PetController mirrors the same assumption (create/getMine/update all
                         // read user.id() off the principal) but was missed when this fix was
                         // applied to requests/intake — anonymous calls NPE (500) instead of

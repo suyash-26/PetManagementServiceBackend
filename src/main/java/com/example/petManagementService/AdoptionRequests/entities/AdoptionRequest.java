@@ -2,6 +2,7 @@ package com.example.petManagementService.AdoptionRequests.entities;
 
 import com.example.petManagementService.requests.entities.Request;
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
@@ -31,7 +32,15 @@ public class AdoptionRequest {
     private Request request;
 
     private UUID listingId;
-    private UUID adopterUserId;
+
+    // Long, not UUID: sourced straight off the JWT claim (AuthenticatedUser.id()),
+    // same as Request.requesterUserId — every user-id field in this codebase is Long.
+    private Long adopterUserId;
+
     private String message;
+
+    @Column(columnDefinition = "text")
+    private String screeningAnswers;
+
     private Boolean homeVisitStatus;
 }
