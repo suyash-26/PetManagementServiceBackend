@@ -4,8 +4,15 @@ import com.example.petManagementService.AdoptionRequests.entities.AdoptionReques
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.UUID;
 
 @Repository
 public interface AdoptionRequestRepository extends JpaRepository<AdoptionRequest, UUID> {
+
+    // Admin's applicant queue for one listing.
+    List<AdoptionRequest> findByListingId(UUID listingId);
+
+    // "Same user applies twice to one listing" guard (doc's DUPLICATE_APPLICATION).
+    boolean existsByListingIdAndAdopterUserId(UUID listingId, Long adopterUserId);
 }
