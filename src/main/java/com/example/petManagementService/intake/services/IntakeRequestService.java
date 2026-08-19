@@ -8,6 +8,7 @@ import com.example.petManagementService.intake.dto.IntakeRequestResponse;
 import com.example.petManagementService.intake.entities.IntakeRequest;
 import com.example.petManagementService.intake.mapper.IntakeRequestMapper;
 import com.example.petManagementService.intake.repositories.IntakeRequestRepository;
+import com.example.petManagementService.pet.service.PetService;
 import com.example.petManagementService.requests.entities.Request;
 import com.example.petManagementService.requests.enums.RequestStatus;
 import com.example.petManagementService.requests.enums.RequestType;
@@ -18,18 +19,20 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.example.petManagementService.pet.dto.PetResponse;
+import com.example.petManagementService.pet.enums.PetStatus;
+import com.example.petManagementService.pet.service.PetService;
 
 import java.util.List;
 import java.util.UUID;
 
 // Flow B — hand a pet to a center. Creates the polymorphic Request (type=INTAKE) plus
 // this module's own detail row, sharing one id via @MapsId.
-//
-// Deliberately does NOT touch the pet module (out of scope for this pass): petId is
-// taken as an opaque UUID reference, with no check that the pet exists or is OWNED by
-// the caller. CareCenterRepository/CenterMemberRepository (via RequestService) ARE
-// used, but only as lightweight, unmodified dependencies — reads/existence checks
-// against already-correct repositories, never a write into another module's data.
+
+// Cross-module reads (pet, center, membership) go through the owning module's *Service
+// interface or repository as a read/existence check only — never a write into another
+// module's data. The pet's actual mutation on completion belongs to the request engine,
+// not here.
 @Service
 @RequiredArgsConstructor
 public class IntakeRequestService {
@@ -39,12 +42,32 @@ public class IntakeRequestService {
     private final IntakeRequestMapper intakeRequestMapper;
     private final CareCenterRepository careCenterRepository;
     private final RequestService requestService;
+    private final PetService petService;
 
     @Transactional
     public IntakeRequestResponse createIntake(Long requesterUserId, IntakeRequestCreateRequest dto) {
-        // GAP: doc also requires "pet must be OWNED by the requester" here — needs the
-        // pet module. Only the request-level guard (no other active request on this
-        // pet) is enforced.
+        // Flow B guard: "pet must be OWNED by the requester". Read through PetService
+        // (not PetRepository) so this stays a cross-module read via the owning module's
+        // interface. getById() already 404s PET_NOT_FOUND for an unknown id.
+
+        PetResponse pet = petService.getById(dto.petId());
+
+        // Null check first, and not merely defensive: a pet already in a center's custody
+        // has ownerUserId == null, so equals() on it would NPE into a 500 instead of a 403.
+
+        if (pet.getOwnerUserId() == null || !pet.getOwnerUserId().equals(requesterUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "NOT_PET_OWNER");
+        }
+
+        // Ownership alone isn't enough. A pet can still be owned by the requester while
+        // mid-flight elsewhere — IN_BOARDING (owner keeps ownership, another center holds
+        // the animal) or PENDING_INTAKE. Neither may be handed to a second center.
+
+        if (pet.getStatus() != PetStatus.OWNED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "PET_NOT_AVAILABLE_FOR_INTAKE: pet is " + pet.getStatus());
+        }
+
         if (requestRepository.existsByPetIdAndStatusIn(dto.petId(), RequestService.ACTIVE_STATUSES)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "PET_HAS_ACTIVE_REQUEST");
         }
