@@ -8,7 +8,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,11 +40,15 @@ public class AdoptionRequestController {
     }
 
     // Admin's applicant queue for a listing (Flow D step 2: "admin sees BOTH applicants
-    // in one queue").
-    // TODO: once CenterMember lookup is wired in, scope to admins of *this* listing's center.
-    @PreAuthorize("hasRole('CENTER_ADMIN')")
+    // in one queue"). NOT role-gated — same reasoning as RequestController and
+    // IntakeRequestController: center-admin-ness comes from a center_members row, not the
+    // JWT role claim. AdoptionRequestService.getApplicants() scopes it to this listing's
+    // own center, so an admin of another center gets 403 instead of reading their data.
     @GetMapping("/{id}/applicants")
-    public ResponseEntity<List<AdoptionRequestResponse>> getApplicants(@PathVariable UUID id) {
-        return ResponseEntity.ok(adoptionRequestService.getApplicants(id));
+    public ResponseEntity<List<AdoptionRequestResponse>> getApplicants(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(
+                adoptionRequestService.getApplicants(id, currentUser.id(), currentUser.role()));
     }
 }

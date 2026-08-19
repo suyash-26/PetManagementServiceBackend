@@ -35,7 +35,8 @@ import java.util.stream.Collectors;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice(basePackages = {
         "com.example.petManagementService.requests",
-        "com.example.petManagementService.intake"
+        "com.example.petManagementService.intake",
+        "com.example.petManagementService.AdoptionRequests"
 })
 public class RequestModuleExceptionHandler {
 

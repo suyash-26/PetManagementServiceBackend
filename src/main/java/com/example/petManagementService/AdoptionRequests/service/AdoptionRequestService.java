@@ -11,6 +11,7 @@ import com.example.petManagementService.pet.enums.ListingStatus;
 import com.example.petManagementService.pet.repository.AdoptionListingRepository;
 import com.example.petManagementService.requests.entities.Request;
 import com.example.petManagementService.requests.repositories.RequestRepository;
+import com.example.petManagementService.requests.services.RequestService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,7 @@ public class AdoptionRequestService {
     private final AdoptionRequestMapper adoptionRequestMapper;
     private final AdoptionListingRepository adoptionListingRepository;
     private final CareCenterRepository careCenterRepository;
+    private final RequestService requestService;
 
     @Transactional
     public AdoptionRequestResponse applyToListing(Long adopterUserId, UUID listingId, AdoptionRequestCreateRequest dto) {
@@ -69,8 +71,16 @@ public class AdoptionRequestService {
         return adoptionRequestMapper.toResponse(savedRequest, savedDetail);
     }
 
+    // Flow D step 2 — the admin's applicant queue for one listing. Scoped to admins of
+    // *this listing's* center via the same center_members lookup the rest of the app uses;
+    // a JWT role claim alone is not authorization (v2 §3 and the security checklist).
     @Transactional(readOnly = true)
-    public List<AdoptionRequestResponse> getApplicants(UUID listingId) {
+    public List<AdoptionRequestResponse> getApplicants(UUID listingId, Long callerId, String callerRole) {
+        AdoptionListing listing = adoptionListingRepository.findById(listingId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "LISTING_NOT_FOUND"));
+
+        requestService.requireCenterAccess(listing.getCenterId(), callerId, callerRole);
+
         return adoptionRequestRepository.findByListingId(listingId).stream()
                 .map(detail -> adoptionRequestMapper.toResponse(detail.getRequest(), detail))
                 .toList();
