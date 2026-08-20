@@ -61,6 +61,7 @@ public class AdoptionRequestService {
         // saveAndFlush, not save: @CreationTimestamp only populates createdAt at flush
         // time, which a @Transactional method would otherwise defer until commit.
         Request savedRequest = requestRepository.saveAndFlush(request);
+        requestService.recordInitialCreation(savedRequest, adopterUserId);
 
         AdoptionRequest detail = adoptionRequestMapper.toDetailEntity(dto);
         detail.setRequest(savedRequest); // @MapsId copies the id from savedRequest

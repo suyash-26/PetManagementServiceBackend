@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import com.example.petManagementService.pet.dto.PetResponse;
 import com.example.petManagementService.pet.enums.PetStatus;
-import com.example.petManagementService.pet.service.PetService;
 
 import java.util.List;
 import java.util.UUID;
