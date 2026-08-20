@@ -4,6 +4,7 @@ import com.example.petManagementService.common.security.AuthenticatedUser;
 import com.example.petManagementService.intake.dto.IntakeRequestCreateRequest;
 import com.example.petManagementService.intake.dto.IntakeRequestResponse;
 import com.example.petManagementService.intake.services.IntakeRequestService;
+import com.example.petManagementService.pet.dto.PetResponse;
 import com.example.petManagementService.requests.enums.RequestStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -54,13 +55,13 @@ public class IntakeRequestController {
         return ResponseEntity.ok(intakeRequestService.getCenterIntakeRequests(id, status, currentUser.id(), currentUser.role()));
     }
 
-    // GAP: custody roster (which pets a center currently holds) needs the pet module —
-    // out of scope for this pass. Thrown through the same exception handler as every
-    // other error here, so it comes back in the same {status, error, message, path}
-    // shape rather than a one-off plain-string body.
+    // The custody roster — every pet this center currently holds, in any state. Scoped to
+    // admins of *this* center (or SUPER_ADMIN) like the queue above.
     @GetMapping("/centers/{centreId}/custody")
-    public ResponseEntity<Void> getAllPetsInCustodyForGivenCentre(@PathVariable UUID centreId) {
-        throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED,
-                "CUSTODY_ROSTER_NOT_IMPLEMENTED: requires the pet module, out of scope for this pass.");
+    public ResponseEntity<List<PetResponse>> getAllPetsInCustodyForGivenCentre(
+            @PathVariable UUID centreId,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(
+                intakeRequestService.getCustodyRoster(centreId, currentUser.id(), currentUser.role()));
     }
 }

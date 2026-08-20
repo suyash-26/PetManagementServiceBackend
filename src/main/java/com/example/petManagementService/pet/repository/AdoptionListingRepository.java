@@ -31,4 +31,12 @@ public interface AdoptionListingRepository extends JpaRepository<AdoptionListing
 
     List<AdoptionListing> findByListingStatusAndPet_SpeciesAndCenterIdIn(
             ListingStatus status, Species species, Collection<UUID> centerIds);
+
+    // The admin's own listings. Unlike the public feed above these are NOT filtered to
+    // OPEN — RESERVED and CLOSED are exactly the ones a center needs to see, since a
+    // RESERVED listing has an approved adopter mid-handover. Newest first.
+    List<AdoptionListing> findByCenterIdOrderByPostedAtDesc(UUID centerId);
+
+    List<AdoptionListing> findByCenterIdAndListingStatusOrderByPostedAtDesc(
+            UUID centerId, ListingStatus listingStatus);
 }

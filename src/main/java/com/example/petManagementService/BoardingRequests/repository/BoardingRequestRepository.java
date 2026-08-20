@@ -23,6 +23,14 @@ public interface BoardingRequestRepository extends JpaRepository<BoardingRequest
 
     List<BoardingRequests> findByRequest_PetId(UUID petId);
 
+    // The center's boarding queue. Ordered by startDate rather than createdAt: an admin
+    // works through stays in the order the animals actually arrive, not the order the
+    // bookings happened to be made.
+    List<BoardingRequests> findByRequest_CareCenter_IdOrderByStartDateAsc(UUID centerId);
+
+    List<BoardingRequests> findByRequest_CareCenter_IdAndRequest_StatusOrderByStartDateAsc(
+            UUID centerId, RequestStatus status);
+
     // Occupancy for a date window. Two intervals overlap when each starts on or before the
     // other ends — the standard test, and much easier to read as JPQL than as a derived
     // method name with four And-clauses.

@@ -8,6 +8,8 @@ import com.example.petManagementService.intake.dto.IntakeRequestResponse;
 import com.example.petManagementService.intake.entities.IntakeRequest;
 import com.example.petManagementService.intake.mapper.IntakeRequestMapper;
 import com.example.petManagementService.intake.repositories.IntakeRequestRepository;
+import com.example.petManagementService.pet.mapper.PetMapper;
+import com.example.petManagementService.pet.repository.PetRepository;
 import com.example.petManagementService.pet.service.PetService;
 import com.example.petManagementService.requests.entities.Request;
 import com.example.petManagementService.requests.enums.RequestStatus;
@@ -42,6 +44,10 @@ public class IntakeRequestService {
     private final CareCenterRepository careCenterRepository;
     private final RequestService requestService;
     private final PetService petService;
+    // The roster maps pet ENTITIES in bulk, which PetService's DTO-returning interface
+    // can't provide — so the repository and mapper are used directly here.
+    private final PetRepository petRepository;
+    private final PetMapper petMapper;
 
     @Transactional
     public IntakeRequestResponse createIntake(Long requesterUserId, IntakeRequestCreateRequest dto) {
@@ -109,6 +115,19 @@ public class IntakeRequestService {
                 : requestRepository.findByCareCenter_IdAndRequestType(centerId, RequestType.INTAKE);
 
         return requests.stream().map(this::toResponse).toList();
+    }
+
+    // v2 §8's custody roster: every pet this center is currently responsible for, whatever
+    // state it's in. This is the entry point to Flow C — a listing may only be created for
+    // a pet that is IN_CENTER_CUSTODY here, so this is the only view that shows which pets
+    // are actually listable. Boarding guests appear too (the center holds them) but they
+    // are still owned by their owners and can never be listed.
+    @Transactional(readOnly = true)
+    public List<PetResponse> getCustodyRoster(UUID centerId, Long callerId, String callerRole) {
+        requestService.requireCenterAccess(centerId, callerId, callerRole);
+        return petRepository.findByCustodianCenterId(centerId).stream()
+                .map(petMapper::toResponse)
+                .toList();
     }
 
     private IntakeRequestResponse toResponse(Request request) {

@@ -3,6 +3,7 @@ package com.example.petManagementService.pet.controller;
 import com.example.petManagementService.common.security.AuthenticatedUser;
 import com.example.petManagementService.pet.dto.AdoptionListingCreateRequest;
 import com.example.petManagementService.pet.dto.AdoptionListingResponse;
+import com.example.petManagementService.pet.enums.ListingStatus;
 import com.example.petManagementService.pet.enums.Species;
 import com.example.petManagementService.pet.service.AdoptionListingService;
 import jakarta.validation.Valid;
@@ -34,6 +35,17 @@ public class AdoptionListingController {
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 listingService.createListing(centerId, request, currentUser.id(), currentUser.role()));
+    }
+
+    // Admin-scoped counterpart to the public feed below. Same path as create(), different
+    // method — which is why a missing GET here answered 405 rather than 404.
+    @GetMapping("/centers/{centerId}/listings")
+    public ResponseEntity<List<AdoptionListingResponse>> centerListings(
+            @PathVariable UUID centerId,
+            @RequestParam(required = false) ListingStatus status,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(listingService.getCenterListings(
+                centerId, status, currentUser.id(), currentUser.role()));
     }
 
     // Public feed — no @AuthenticationPrincipal, so it works for anonymous browsers.
