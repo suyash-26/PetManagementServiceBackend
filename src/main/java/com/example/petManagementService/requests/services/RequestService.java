@@ -1,12 +1,7 @@
 package com.example.petManagementService.requests.services;
 
 import com.example.petManagementService.CareCenter.repository.CenterMemberRepository;
-import com.example.petManagementService.pet.entity.Pet;
-import com.example.petManagementService.pet.entity.PetCustodyHistory;
-import com.example.petManagementService.pet.enums.PetStatus;
-import com.example.petManagementService.pet.enums.TransferType;
-import com.example.petManagementService.pet.repository.PetCustodyHistoryRepository;
-import com.example.petManagementService.pet.repository.PetRepository;
+import com.example.petManagementService.pet.service.CustodyService;
 import com.example.petManagementService.requests.dto.RequestResponse;
 import com.example.petManagementService.requests.dto.RequestStatusHistoryResponse;
 import com.example.petManagementService.requests.entities.Request;
@@ -21,6 +16,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.example.petManagementService.AdoptionRequests.entities.AdoptionRequest;
+import com.example.petManagementService.AdoptionRequests.repository.AdoptionRequestRepository;
+import com.example.petManagementService.pet.entity.AdoptionListing;
+import com.example.petManagementService.pet.enums.ListingStatus;
+import com.example.petManagementService.pet.repository.AdoptionListingRepository;
 
 import java.time.Instant;
 import java.util.List;
@@ -51,8 +51,9 @@ public class RequestService {
     private final RequestStatusHistoryRepository requestStatusHistoryRepository;
     private final CenterMemberRepository centerMemberRepository;
     private final RequestMapper requestMapper;
-    private final PetRepository petRepository;
-    private final PetCustodyHistoryRepository petCustodyHistoryRepository;
+    private final CustodyService custodyService;
+    private final AdoptionRequestRepository adoptionRequestRepository;
+    private final AdoptionListingRepository adoptionListingRepository;
 
     @Transactional(readOnly = true)
     public List<RequestResponse> getMyRequests(Long requesterUserId) {
@@ -97,9 +98,18 @@ public class RequestService {
         request.setStatus(RequestStatus.APPROVED);
         request.setAssignedAdmin(adminUserId);
         request.setDecidedAt(Instant.now());
-        // GAP: for an INTAKE request this should also flip the pet to PENDING_INTAKE.
-        // Needs the pet module (out of scope for this pass).
-        Request saved = requestRepository.save(request);
+        // Intake approval is a promise: the pet is earmarked for handover but stays with
+        // its owner until complete(). ADOPTION's equivalent (listing → RESERVED, pet →
+        // RESERVED) lands with the listing module; BOARDING moves the pet at check-in, not
+        // approval; GENERAL has no pet at all.
+        switch (request.getRequestType()) {
+            // Intake approval earmarks the pet; it stays with its owner until complete().
+            case INTAKE -> custodyService.markPendingIntake(request.getPetId(), request.getId());
+            // Adoption approval locks the listing to one applicant; nothing transfers yet.
+            case ADOPTION -> applyAdoptionApproval(request);
+            // BOARDING moves the pet at check-in, not approval. GENERAL has no pet at all.
+            default -> { }
+        }        Request saved = requestRepository.save(request);
         recordStatusChange(saved, previousStatus, RequestStatus.APPROVED, adminUserId, null);
         return requestMapper.toResponse(saved);
     }
@@ -143,8 +153,18 @@ public class RequestService {
         RequestStatus previousStatus = request.getStatus();
         request.setStatus(RequestStatus.CANCELLED);
         request.setDecidedAt(Instant.now());
-        // GAP: for an INTAKE request whose pet already moved to PENDING_INTAKE, cancelling
-        // should revert the pet to OWNED. Needs the pet module.
+        // Only an APPROVED intake ever moved the pet. Cancelling a still-PENDING one must
+        // not touch it — the pet never left OWNED, and revertPendingIntake() would throw
+        // ILLEGAL_CUSTODY_TRANSITION on a pet that's already OWNED.
+        // Only an APPROVED request ever moved anything; a still-PENDING one has nothing to
+        // undo, and the revert methods would throw ILLEGAL_CUSTODY_TRANSITION.
+        if (previousStatus == RequestStatus.APPROVED) {
+            switch (request.getRequestType()) {
+                case INTAKE -> custodyService.revertPendingIntake(request.getPetId(), request.getId());
+                case ADOPTION -> applyAdoptionCancellation(request);
+                default -> { }
+            }
+        }
         Request saved = requestRepository.save(request);
         recordStatusChange(saved, previousStatus, RequestStatus.CANCELLED, callerUserId, null);
         return requestMapper.toResponse(saved);
@@ -162,44 +182,16 @@ public class RequestService {
         // the same thing (adoption moves a pet already IN_CENTER_CUSTODY to its adopter;
         // boarding is a loan, not a transfer) and neither module is implemented yet, so
         // this stays scoped rather than guessing their semantics.
-        if (request.getRequestType() == RequestType.INTAKE) {
-            transferCustodyToCenter(request, adminUserId);
+        switch (request.getRequestType()) {
+            case INTAKE -> custodyService.transferToCenter(
+                    request.getPetId(), request.getCareCenter().getId(), request.getId(), adminUserId);
+            case ADOPTION -> applyAdoptionCompletion(request, adminUserId);
+            // BOARDING's real effects are check-in/check-out. GENERAL has no custody effect.
+            default -> { }
         }
         Request saved = requestRepository.save(request);
         recordStatusChange(saved, previousStatus, RequestStatus.COMPLETED, adminUserId, null);
         return requestMapper.toResponse(saved);
-    }
-
-    // The actual handover: the pet stops being "mine" for the surrendering owner (GET
-    // /pets/mine filters on ownerUserId) and becomes this center's custody. surrenderedByUserId
-    // is kept for provenance even though ownerUserId is cleared — nothing else records who
-    // handed the pet over otherwise. One PetCustodyHistory row mirrors what RequestStatusHistory
-    // already does for the request itself.
-    private void transferCustodyToCenter(Request request, Long adminUserId) {
-        Pet pet = petRepository.findById(request.getPetId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "PET_MISSING_ON_COMPLETE: request " + request.getId() + " references a pet that no longer exists"));
-
-        Long fromUserId = pet.getOwnerUserId();
-        UUID fromCenterId = pet.getCustodianCenterId();
-        UUID toCenterId = request.getCareCenter().getId();
-
-        pet.setOwnerUserId(null);
-        pet.setCustodianCenterId(toCenterId);
-        pet.setSurrenderedByUserId(fromUserId);
-        pet.setStatus(PetStatus.IN_CENTER_CUSTODY);
-        petRepository.save(pet);
-
-        PetCustodyHistory history = new PetCustodyHistory();
-        history.setPet(pet);
-        history.setFromUserId(fromUserId);
-        history.setFromCenterId(fromCenterId);
-        history.setToCenterId(toCenterId);
-        history.setRequestId(request.getId());
-        history.setTransferType(TransferType.INTAKE);
-        history.setTransferredAt(Instant.now());
-        history.setRecordedBy(adminUserId);
-        petCustodyHistoryRepository.save(history);
     }
 
     // Real audit trail now (requests.entities.RequestStatusHistory) — one row per
@@ -247,6 +239,78 @@ public class RequestService {
 
     private ResponseStatusException illegalTransition(RequestStatus from, RequestStatus to) {
         return new ResponseStatusException(HttpStatus.CONFLICT, "ILLEGAL_TRANSITION: " + from + " -> " + to);
+    }
+
+    // Flow D step 2 — approve one applicant. The listing goes RESERVED so no one else can
+    // apply or be approved, and the pet goes RESERVED so it leaves the public feed.
+    // Nothing transfers: the animal is still at the center.
+    private void applyAdoptionApproval(Request request) {
+        AdoptionListing listing = listingFor(request);
+
+        // The race guard the doc asks for: two admins approving two different applicants
+        // for the same listing. The second one loses here rather than double-reserving.
+        if (listing.getListingStatus() != ListingStatus.OPEN) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "ALREADY_RESERVED: this listing already has an approved adopter");
+        }
+
+        listing.setListingStatus(ListingStatus.RESERVED);
+        adoptionListingRepository.save(listing);
+        custodyService.markReserved(request.getPetId());
+    }
+
+    // Flow D step 3 — the handover, all in the caller's single transaction: ownership
+    // moves, the listing closes, and every rival application is auto-rejected with a
+    // reason. This is the ONLY point at which an adopter becomes the legal owner.
+    private void applyAdoptionCompletion(Request request, Long adminUserId) {
+        AdoptionRequest detail = adoptionDetailFor(request);
+        AdoptionListing listing = listingFor(request);
+
+        custodyService.transferToAdopter(request.getPetId(), detail.getAdopterUserId(),
+                request.getId(), adminUserId);
+
+        listing.setListingStatus(ListingStatus.CLOSED);
+        adoptionListingRepository.save(listing);
+
+        for (AdoptionRequest rival : adoptionRequestRepository
+                .findByListingIdAndRequest_StatusIn(listing.getId(), ACTIVE_STATUSES)) {
+            Request rivalRequest = rival.getRequest();
+            if (rivalRequest.getId().equals(request.getId())) {
+                continue; // skip the winner, which this method is completing
+            }
+            RequestStatus from = rivalRequest.getStatus();
+            rivalRequest.setStatus(RequestStatus.REJECTED);
+            rivalRequest.setAssignedAdmin(adminUserId);
+            rivalRequest.setDecidedAt(Instant.now());
+            requestRepository.save(rivalRequest);
+            // Rivals get their own history rows — a rejected applicant deserves an audit
+            // trail explaining why, same as any admin-initiated rejection.
+            recordStatusChange(rivalRequest, from, RequestStatus.REJECTED, adminUserId,
+                    "AUTO_REJECTED: another applicant was approved for this listing");
+        }
+    }
+
+    // Flow D step 4 — approved adopter never collected. The listing reopens and the pet
+    // goes back on the shelf, so other applicants can still be considered.
+    private void applyAdoptionCancellation(Request request) {
+        AdoptionListing listing = listingFor(request);
+        listing.setListingStatus(ListingStatus.OPEN);
+        adoptionListingRepository.save(listing);
+        custodyService.revertToAvailableForAdoption(request.getPetId());
+    }
+
+    private AdoptionRequest adoptionDetailFor(Request request) {
+        // 500, not 404: an ADOPTION request without its detail row is corrupt data, not a
+        // bad client call — the two are written together in one transaction.
+        return adoptionRequestRepository.findById(request.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                        "ADOPTION_DETAIL_MISSING for request " + request.getId()));
+    }
+
+    private AdoptionListing listingFor(Request request) {
+        return adoptionListingRepository.findById(adoptionDetailFor(request).getListingId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                        "LISTING_MISSING for adoption request " + request.getId()));
     }
 
     private void recordStatusChange(Request request, RequestStatus from, RequestStatus to, Long changedBy, String notes) {

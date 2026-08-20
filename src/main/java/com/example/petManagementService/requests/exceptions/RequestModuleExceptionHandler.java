@@ -36,7 +36,9 @@ import java.util.stream.Collectors;
 @RestControllerAdvice(basePackages = {
         "com.example.petManagementService.requests",
         "com.example.petManagementService.intake",
-        "com.example.petManagementService.AdoptionRequests"
+        "com.example.petManagementService.AdoptionRequests",
+        "com.example.petManagementService.pet",
+        "com.example.petManagementService.BoardingRequests"
 })
 public class RequestModuleExceptionHandler {
 

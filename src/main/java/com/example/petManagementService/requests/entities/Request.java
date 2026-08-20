@@ -36,7 +36,11 @@ public class Request {
 
     private UUID petId;
 
-    @ManyToOne
+    // NOT NULL per v2 §5 — "every request is owned by exactly one center". The engine
+    // dereferences getCareCenter().getId() on every transition, so a null here is a 500
+    // waiting to happen rather than a merely invalid row.
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "care_center_id", nullable = false)
     private CareCenter careCenter;
 
     @Enumerated(EnumType.STRING)

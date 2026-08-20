@@ -46,7 +46,8 @@ public class SecurityConfig {
                         // "raise an intake", or "apply to a listing"); without this they'd NPE
                         // instead of 401ing when called with no token. Everything else stays
                         // permitAll, unchanged.
-                        .requestMatchers("/requests/**", "/intake/**", "/listings/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/listings", "/listings/*").permitAll()
+                        .requestMatchers("/requests/**", "/intake/**", "/listings/**","/boarding-requests/**").authenticated()
                         // PetController mirrors the same assumption (create/getMine/update all
                         // read user.id() off the principal) but was missed when this fix was
                         // applied to requests/intake — anonymous calls NPE (500) instead of
