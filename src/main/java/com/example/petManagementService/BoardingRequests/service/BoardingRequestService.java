@@ -90,6 +90,21 @@ public class BoardingRequestService {
         return boardingMapper.toResponse(boardingRepository.save(detail));
     }
 
+    // The center's boarding queue. Exists alongside the generic request queue because
+    // RequestResponse carries no startDate, endDate, checkedInAt or checkedOutAt — so
+    // reviewing boarding from there would mean approving a stay without seeing its dates.
+    @Transactional(readOnly = true)
+    public List<BoardingRequestResponse> getCenterBoardingRequests(UUID centerId, RequestStatus status,
+                                                                    Long callerId, String callerRole) {
+        requestService.requireCenterAccess(centerId, callerId, callerRole);
+
+        List<BoardingRequests> rows = status != null
+                ? boardingRepository.findByRequest_CareCenter_IdAndRequest_StatusOrderByStartDateAsc(centerId, status)
+                : boardingRepository.findByRequest_CareCenter_IdOrderByStartDateAsc(centerId);
+
+        return rows.stream().map(boardingMapper::toResponse).toList();
+    }
+
     // Flow E step 3 — drop-off. Only from APPROVED: you cannot check in an animal whose
     // stay was never agreed.
     @Transactional

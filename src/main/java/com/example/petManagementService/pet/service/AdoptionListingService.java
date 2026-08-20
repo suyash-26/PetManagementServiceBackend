@@ -104,6 +104,21 @@ public class AdoptionListingService {
         return listings.stream().map(listingMapper::toResponse).toList();
     }
 
+    // The center's own listing list — admin-scoped, every status. Deliberately separate
+    // from getFeed(): that one is anonymous and hardcoded to OPEN, so an admin browsing it
+    // would never see the listings that actually need attention.
+    @Transactional(readOnly = true)
+    public List<AdoptionListingResponse> getCenterListings(UUID centerId, ListingStatus status,
+                                                           Long callerId, String callerRole) {
+        requestService.requireCenterAccess(centerId, callerId, callerRole);
+
+        List<AdoptionListing> listings = status != null
+                ? listingRepository.findByCenterIdAndListingStatusOrderByPostedAtDesc(centerId, status)
+                : listingRepository.findByCenterIdOrderByPostedAtDesc(centerId);
+
+        return listings.stream().map(listingMapper::toResponse).toList();
+    }
+
     @Transactional(readOnly = true)
     public AdoptionListingResponse getById(UUID listingId) {
         return listingMapper.toResponse(listingRepository.findById(listingId)

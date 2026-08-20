@@ -5,6 +5,7 @@ import com.example.petManagementService.BoardingRequests.dto.BoardingRequestResp
 import com.example.petManagementService.BoardingRequests.dto.CenterAvailabilityResponse;
 import com.example.petManagementService.BoardingRequests.service.BoardingRequestService;
 import com.example.petManagementService.common.security.AuthenticatedUser;
+import com.example.petManagementService.requests.enums.RequestStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -14,6 +15,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 // No class-level @RequestMapping: boarding requests live at /boarding-requests while
@@ -30,6 +32,17 @@ public class BoardingRequestController {
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(boardingService.create(currentUser.id(), request));
+    }
+
+    // The center's queue, with the boarding-specific fields the generic /requests queue
+    // doesn't carry.
+    @GetMapping("/centers/{centerId}/boarding-requests")
+    public ResponseEntity<List<BoardingRequestResponse>> centerBoardingRequests(
+            @PathVariable UUID centerId,
+            @RequestParam(required = false) RequestStatus status,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(boardingService.getCenterBoardingRequests(
+                centerId, status, currentUser.id(), currentUser.role()));
     }
 
     @PostMapping("/boarding-requests/{id}/check-in")
